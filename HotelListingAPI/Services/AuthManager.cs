@@ -1,5 +1,6 @@
 ﻿using HotelListingAPI.Data;
 using HotelListingAPI.Models;
+using HotelListingAPI.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -10,16 +11,15 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HotelListingAPI.Services
+namespace HotelListing.Services
 {
     public class AuthManager : IAuthManager
     {
         private readonly UserManager<ApiUser> _userManager;
         private readonly IConfiguration _configuration;
         private ApiUser _user;
-
-        public AuthManager(UserManager<ApiUser> userManager, 
-                        IConfiguration configuration)
+        public AuthManager(UserManager<ApiUser> userManager,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _configuration = configuration;
@@ -29,8 +29,9 @@ namespace HotelListingAPI.Services
         {
             var signingCredentials = GetSigningCredentials();
             var claims = await GetClaims();
-            var tokenOptions = GenerateTokenOptions(signingCredentials, claims);
-            return new JwtSecurityTokenHandler().WriteToken(tokenOptions); 
+            var token = GenerateTokenOptions(signingCredentials, claims);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private JwtSecurityToken GenerateTokenOptions(SigningCredentials signingCredentials, List<Claim> claims)
@@ -49,34 +50,36 @@ namespace HotelListingAPI.Services
             return token;
         }
 
-
         private async Task<List<Claim>> GetClaims()
         {
-            var Claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, _user.UserName)
-            };
+            var claims = new List<Claim>
+             {
+                 new Claim(ClaimTypes.Name, _user.UserName)
+             };
+
             var roles = await _userManager.GetRolesAsync(_user);
 
-            foreach(var role in roles)
+            foreach (var role in roles)
             {
-                Claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
-            return Claims;
 
+            return claims;
         }
 
         private SigningCredentials GetSigningCredentials()
         {
             var key = Environment.GetEnvironmentVariable("KEY");
             var secret = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+
             return new SigningCredentials(secret, SecurityAlgorithms.HmacSha256);
         }
 
         public async Task<bool> ValidateUser(LoginUserDTO userDTO)
         {
             _user = await _userManager.FindByNameAsync(userDTO.Email);
-            return(_user != null && await _userManager.CheckPasswordAsync(_user, userDTO.Password));
+            var validPassword = await _userManager.CheckPasswordAsync(_user, userDTO.Password);
+            return (_user != null && validPassword);
         }
     }
 }

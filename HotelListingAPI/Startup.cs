@@ -1,3 +1,4 @@
+using HotelListing.Services;
 using HotelListingAPI.Configurations;
 using HotelListingAPI.Data;
 using HotelListingAPI.IRepository;
